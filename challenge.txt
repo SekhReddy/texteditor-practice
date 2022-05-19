@@ -1,0 +1,1960 @@
+Your task is to implement a simplified version of text editor.
+
+All operations that should be supported are listed below. Partial credit will be given for each implemented operation. Please submit often to ensure partial credits are captured.
+
+Implementation tips
+
+Implement operations and provided steps one by one, and not all together, keeping in mind that you will need to make refactors to support each additional step. In the first three levels you can assume that only one text document is modified.
+
+Note
+
+After every operation, add the current state of the text to the resulting array. The returning array should consist of all the states after each operation is applied and have the same length as the # of input queries.
+
+Level 1
+The editor starts with a blank text document, with the cursor at initial position 0.
+
+1. APPEND <text> should append the inputted string text to the document starting from the current position of the cursor. After the operation, the cursor should be at the end of the added string.
+
+queries = [
+    ["APPEND", "Hey"],                | "" -> "Hey"
+    ["APPEND", " there"],             | "Hey" -> "Hey there"
+    ["APPEND", "!"]                   | "Hey there" -> "Hey there!"
+]
+
+// returns: [ "Hey",
+//            "Hey there",
+//            "Hey there!" ]
+2. MOVE <position> should move the cursor to the specified position. The cursor should be positioned between document characters, and are enumerated sequentially starting from 0. If the specified position is out of bounds, then move the cursor to the nearest available position.
+
+queries = [
+    ["APPEND", "Hey you"],            | "" -> "Hey you"
+    ["MOVE", "3"],                    | moves the cursor after the first "y"
+    ["APPEND", ","]                   | "Hey you" -> "Hey, you"
+]
+
+// returns: [ "Hey you",
+//            "Hey you",
+//            "Hey, you" ]
+3. BACKSPACE should remove the character right before the cursor, if any.
+
+queries = [
+    [APPEND", "Hey you"],             | "" -> "Hey you"
+    ["BACKSPACE"],                    | "Hey you" -> "Hey yo"
+    ["BACKSPACE"]                     | "Hey yo" -> "Hey y"
+]
+
+// returns: [ "Hey you",
+//            "Hey yo",
+//            "Hey y" ]
+and
+
+queries = [
+    ["APPEND", "!"],                  | "" -> "!"
+    ["BACKSPACE"],                    | "!" -> ""
+    ["BACKSPACE"]                     | "" -> ""
+]
+
+// returns: [ "!",
+//            "",
+//            "" ]
+Level 2
+Introduce methods to copy a part of the document text.
+
+4. SELECT <left> <right> should select the text between the left and right cursor positions. Selection borders should be returned to the bounds of the document. If the selection is empty, it becomes a cursor position. Any modification operation replace the selected text and places the cursor at the end of the modified segment.
+
+Additionally,
+
+SELECT and APPEND should replace the selected characters with the appended characters
+SELECT and BACKSPACE should delete the selected characters
+SELECT and MOVE deselects characters if there were any and moves the cursor
+For example, the following operations
+
+queries = [
+    ["APPEND", "Hello cruel world!"], | "" -> "Hello cruel world!"
+    ["SELECT", "5", "11"],            | selects " cruel"
+    ["APPEND", ","],                  | "Hello cruel world!" -> "Hello, world!",
+                                      | as the selected part has been replaced with "," by APPEND
+    ["SELECT", "5", "12"],            | selects ", world"
+    ["BACKSPACE"],                    | "Hello, world!" -> "Hello!",
+                                      | as the selected part has been removed by BACKSPACE
+    ["SELECT", "4", "6"],             | selects "o!"
+    ["MOVE", "1"]                     | moves cursor before "e", deselects "o!"
+]
+
+// returns: [ "Hello cruel world!",
+//            "Hello cruel world!",
+//            "Hello, world!",
+//            "Hello, world!",
+//            "Hello!",
+//            "Hello!",
+//            "Hello!" ]
+produce "Hello!" with the cursor positioned after letter H.
+
+5. COPY should copy the selected text to the clipboard, if there is an active non-empty selection. The current selected text (if any) remains selected after the operation.
+6. PASTE should append the text from the clipboard. The current selected text (if any) is overwriten with the clipboard value after the operation, and the cursor is placed at the end of the pasted text.
+
+For example, the following operations
+
+queries = [
+    ["APPEND", "Hello, world!"],      | "" -> "Hello, world!"
+    ["SELECT", "5", "12"],            | selects ", world"
+    ["COPY"],                         | copies ", world"
+    ["MOVE", "12"],                   | moves the cursor to after "d"
+    ["PASTE"],                        | "Hello, world!" -> "Hello, world, world!",
+                                      | as ", world" has been pasted from the clipboard
+    ["PASTE"],                        | "Hello, world, world!" -> "Hello, world, world, world!",
+                                      | as ", world" has been pasted from the clipboard
+    ["SELECT", "5", "19"],            | selects ", world, world"
+    ["PASTE"]                         | "Hello, world, world, world!" -> "Hello, world, world!",
+                                      | as selected ", world, world" has been replaced
+                                      | with ", world" from the clipboard
+]
+
+// returns: [ "Hello, world!",
+//            "Hello, world!",
+//            "Hello, world!",
+//            "Hello, world!",
+//            "Hello, world, world!",
+//            "Hello, world, world, world!"
+//            "Hello, world, world, world!" 
+//            "Hello, world, world!" ]
+Level 3
+The text editor should allow document changes to be tracked and reverted. Consider only operations that actually modify the contents of the text document, which are (APPEND, BACKSPACE, PASTE, UNDO, and REDO).
+
+7. UNDO should restore the document to the state before the previous modification or REDO operation. The selection and cursor position should be also restored to the state they were before.
+
+For example,
+
+queries = [
+    ["APPEND", "Hello, world!"],      | "" -> "Hello, world!"
+    ["SELECT", "7", "12"],            | selects "world"
+    ["BACKSPACE"],                    | "Hello, world!" -> "Hello, !",
+                                      | as "world" has been removed by BACKSPACE
+    ["UNDO"],                         | restores "Hello, world!" with "world" selected 
+    ["APPEND", "you"]                 | "Hello, world!" -> "Hello, you!",
+                                      | as "you" replaces the selected "world"
+]
+
+// returns: [ "Hello, world!",
+//            "Hello, world!",
+//            "Hello, !",
+//            "Hello, world!",
+//            "Hello, you!" ]
+8. REDO can only be performed if the document has not been modified since the last UNDO operation. REDO should restore the state before the previous UNDO operation, including the selection and cursor position. Multiple UNDO and REDO operations can be performed in a row.
+
+For example,
+
+queries = [
+    ["APPEND", "Hello, world!"],      | "" -> "Hello, world!"
+    ["SELECT", "7", "12"],            | selects "world"
+    ["BACKSPACE"],                    | "Hello, world!" -> "Hello, !"
+    ["MOVE", "6"],                    | moves the cursor to after the comma 
+    ["UNDO"],                         | restores "Hello, world!" with "world" selected 
+    ["UNDO"],                         | restores initial ""
+    ["REDO"],                         | restores "Hello, world!" with "world" selected
+    ["REDO"]                          | restores "Hello, !" with the cursor after the comma
+]
+
+// returns: [ "Hello, world!",
+//            "Hello, world!",
+//            "Hello, !",
+//            "Hello, !",
+//            "Hello, world!",
+//            "",
+//            "Hello, world!",
+//            "Hello, !" ]
+Level 4
+The text editor should support multiple text documents with a common clipboard.
+
+9. CREATE <name> should create a blank text document name. If such a file already exists, ignore the operation and return empty string. Modification history is stored individually for each document.
+10. SWITCH <name> should switch the current document to name. If there is no such file, ignore the operation and return empty string. When switching to a file, the position of the cursor and selection should return to the state in which they were left.
+
+Note: it is guaranteed that all operations from previous levels will be executed on the active document. For backward compatibility, assume for Levels 1-3 there is a single, initially active document.
+
+For example,
+
+queries = [
+    ["CREATE", "document1"],          | creates document1
+    ["CREATE", "document2"],          | creates document2
+    ["CREATE", "document1"],          | ignores the operation
+    ["SWITCH", "document1"],          | switches to document1
+    ["APPEND", "Hello, world!"],      | document1: "" -> "Hello, world!"
+    ["SELECT", "7", "12"],            | selects "world"
+    ["COPY"],                         | copies "world" to the clipboard
+    ["SWITCH", "document2"],          | switches to document2
+    ["PASTE"],                        | document2: "" -> "world"
+    ["SWITCH", "document1"],          | switches to document1
+    ["BACKSPACE"]                     | document1: "Hello, world!" -> "Hello, !"
+]
+
+// returns: [ "",
+//            "",
+//            "",
+//            "",
+//            "Hello, world!",
+//            "Hello, world!",
+//            "Hello, world!",
+//            "",
+//            "world",
+//            "Hello, world!",
+//            "Hello, !" ]
+Example
+
+For
+
+queries = [
+    ["APPEND", "Hey"],
+    ["APPEND", " you"],
+    ["APPEND", ", don't"],
+    ["APPEND", " "],
+    ["APPEND", "let me down"]
+]
+the output should be
+
+textEditor2_2(queries) = [
+    "Hey",
+    "Hey you",
+    "Hey you, don't",
+    "Hey you, don't ",
+    "Hey you, don't let me down"
+]
+Input/Output
+
+[execution time limit] 4 seconds (py3)
+
+[input] array.array.string queries
+
+An array of operations need to be applied to the text editor. It is guaranteed that each operation is one of the operations described in the description, all operation parameters are given in correct format, and the text editor will never be in an incorrect state that is not described in the description.
+
+Guaranteed constraints:
+1 ≤ queries.length ≤ 250.
+
+[output] array.string
+
+After every operation, add the current state of the text to the resulting array. The returning array should consist of all the states after each operation is applied and have the same length as the # of input queries.
+
+[Python 3] Syntax Tips
+
+# Prints help message to the console
+# Returns a string
+def helloWorld(name):
+    print("This prints to the console when you Run Tests")
+    return "Hello, " + name
+
+Saved
+123
+def solution(queries):
+
+
+TESTS
+CUSTOM TESTS
+MORE
+
+===================== code that passed till test 10 =======================
+def solution(queries):
+    doc = []
+    cursorPosition = 0
+    for [cmd,*input] in queries :
+        input = input[0] if input else None
+        if cmd == "APPEND":
+            if len(doc) == 0:
+                doc.append(input)
+                cursorPosition = len(input)
+            else:
+                lstr = doc[len(doc)-1]
+                lstr = lstr[:cursorPosition]+input+lstr[cursorPosition:]
+                doc.append(lstr)
+                cursorPosition = cursorPosition + len(input)
+        elif (cmd == "BACKSPACE"):
+            lstr = doc[len(doc)-1]          
+            lstr = lstr[:cursorPosition-1]+lstr[cursorPosition:]
+            cursorPosition = cursorPosition - 1
+            if cursorPosition < 0:
+                cursorPosition = 0
+            doc.append(lstr)       
+        elif (cmd == "MOVE"):
+            if int(input) < 0:
+                cursorPosition = 0
+            else:
+                cursorPosition = int(input)  
+            doc.append(doc[len(doc)-1])   
+    return doc
+
+===========================
+Test 1
+
+Input:
+queries:
+[["APPEND","Hey"], 
+ ["APPEND"," you"], 
+ ["APPEND",", don't"], 
+ ["APPEND"," "], 
+ ["APPEND","let me down"]]
+Output:
+["Hey", 
+ "Hey you", 
+ "Hey you, don't", 
+ "Hey you, don't ", 
+ "Hey you, don't let me down"]
+Expected Output:
+["Hey", 
+ "Hey you", 
+ "Hey you, don't", 
+ "Hey you, don't ", 
+ "Hey you, don't let me down"]
+Console Output:
+Empty
+
+Test 2
+
+Input:
+queries:
+[["APPEND","Hey, you!"], 
+ ["BACKSPACE"], 
+ ["APPEND","? Impossibel!"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["APPEND","le!"]]
+Output:
+["Hey, you!", 
+ "Hey, you", 
+ "Hey, you? Impossibel!", 
+ "Hey, you? Impossibel", 
+ "Hey, you? Impossibe", 
+ "Hey, you? Impossib", 
+ "Hey, you? Impossible!"]
+Expected Output:
+["Hey, you!", 
+ "Hey, you", 
+ "Hey, you? Impossibel!", 
+ "Hey, you? Impossibel", 
+ "Hey, you? Impossibe", 
+ "Hey, you? Impossib", 
+ "Hey, you? Impossible!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 3
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["APPEND",""], 
+ ["MOVE","-10"], 
+ ["APPEND","START. "], 
+ ["MOVE","57"], 
+ ["APPEND","END."]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "START. You'll never find a rainbow if you're looking down", 
+ "START. You'll never find a rainbow if you're looking down", 
+ "START. You'll never find a rainbow if you're looking downEND."]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "START. You'll never find a rainbow if you're looking down", 
+ "START. You'll never find a rainbow if you're looking down", 
+ "START. You'll never find a rainbow if you're looking downEND."]
+Console Output:
+Empty
+Error Output:
+Empty
+Test 4
+Input:
+queries:
+[["APPEND","Never give up"], 
+ ["MOVE","12"], 
+ ["APPEND","!"], 
+ ["MOVE","11"], 
+ ["APPEND","!"], 
+ ["MOVE","10"], 
+ ["APPEND","!"], 
+ ["MOVE","9"], 
+ ["APPEND","!"], 
+ ["MOVE","8"], 
+ ["APPEND","!"], 
+ ["MOVE","7"], 
+ ["APPEND","!"], 
+ ["MOVE","6"], 
+ ["APPEND","!"], 
+ ["MOVE","5"], 
+ ["APPEND","!"], 
+ ["MOVE","4"], 
+ ["APPEND","!"], 
+ ["MOVE","3"], 
+ ["APPEND","!"], 
+ ["MOVE","2"], 
+ ["APPEND","!"], 
+ ["MOVE","1"], 
+ ["APPEND","!"]]
+Output:
+["Never give up", 
+ "Never give up", 
+ "Never give u!p", 
+ "Never give u!p", 
+ "Never give !u!p", 
+ "Never give !u!p", 
+ "Never give! !u!p", 
+ "Never give! !u!p", 
+ "Never giv!e! !u!p", 
+ "Never giv!e! !u!p", 
+ "Never gi!v!e! !u!p", 
+ "Never gi!v!e! !u!p", 
+ "Never g!i!v!e! !u!p", 
+ "Never g!i!v!e! !u!p", 
+ "Never !g!i!v!e! !u!p", 
+ "Never !g!i!v!e! !u!p", 
+ "Never! !g!i!v!e! !u!p", 
+ "Never! !g!i!v!e! !u!p", 
+ "Neve!r! !g!i!v!e! !u!p", 
+ "Neve!r! !g!i!v!e! !u!p", 
+ "Nev!e!r! !g!i!v!e! !u!p", 
+ "Nev!e!r! !g!i!v!e! !u!p", 
+ "Ne!v!e!r! !g!i!v!e! !u!p", 
+ "Ne!v!e!r! !g!i!v!e! !u!p", 
+ "N!e!v!e!r! !g!i!v!e! !u!p"]
+Expected Output:
+["Never give up", 
+ "Never give up", 
+ "Never give u!p", 
+ "Never give u!p", 
+ "Never give !u!p", 
+ "Never give !u!p", 
+ "Never give! !u!p", 
+ "Never give! !u!p", 
+ "Never giv!e! !u!p", 
+ "Never giv!e! !u!p", 
+ "Never gi!v!e! !u!p", 
+ "Never gi!v!e! !u!p", 
+ "Never g!i!v!e! !u!p", 
+ "Never g!i!v!e! !u!p", 
+ "Never !g!i!v!e! !u!p", 
+ "Never !g!i!v!e! !u!p", 
+ "Never! !g!i!v!e! !u!p", 
+ "Never! !g!i!v!e! !u!p", 
+ "Neve!r! !g!i!v!e! !u!p", 
+ "Neve!r! !g!i!v!e! !u!p", 
+ "Nev!e!r! !g!i!v!e! !u!p", 
+ "Nev!e!r! !g!i!v!e! !u!p", 
+ "Ne!v!e!r! !g!i!v!e! !u!p", 
+ "Ne!v!e!r! !g!i!v!e! !u!p", 
+ "N!e!v!e!r! !g!i!v!e! !u!p"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 5
+
+Input:
+queries:
+[["APPEND","Hello, what a wonderful world!"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["MOVE","4"], 
+ ["APPEND"," middle "]]
+Output:
+["Hello, what a wonderful world!", 
+ "Hello, what a wonderful world", 
+ "Hello, what a wonderful worl", 
+ "Hello, what a wonderful wor", 
+ "Hello, what a wonderful wo", 
+ "Hello, what a wonderful w", 
+ "Hello, what a wonderful ", 
+ "Hello, what a wonderful", 
+ "Hello, what a wonderfu", 
+ "Hello, what a wonderf", 
+ "Hello, what a wonder", 
+ "Hello, what a wonde", 
+ "Hello, what a wond", 
+ "Hello, what a won", 
+ "Hello, what a wo", 
+ "Hello, what a w", 
+ "Hello, what a ", 
+ "Hello, what a", 
+ "Hello, what ", 
+ "Hello, what", 
+ "Hello, wha", 
+ "Hello, wha", 
+ "Hell middle o, wha"]
+Expected Output:
+["Hello, what a wonderful world!", 
+ "Hello, what a wonderful world", 
+ "Hello, what a wonderful worl", 
+ "Hello, what a wonderful wor", 
+ "Hello, what a wonderful wo", 
+ "Hello, what a wonderful w", 
+ "Hello, what a wonderful ", 
+ "Hello, what a wonderful", 
+ "Hello, what a wonderfu", 
+ "Hello, what a wonderf", 
+ "Hello, what a wonder", 
+ "Hello, what a wonde", 
+ "Hello, what a wond", 
+ "Hello, what a won", 
+ "Hello, what a wo", 
+ "Hello, what a w", 
+ "Hello, what a ", 
+ "Hello, what a", 
+ "Hello, what ", 
+ "Hello, what", 
+ "Hello, wha", 
+ "Hello, wha", 
+ "Hell middle o, wha"]
+Console Output:
+Empty
+Error Output:
+Empty
+Test 6
+
+Input:
+queries:
+[["APPEND","Hello, what a wonderful world!"], 
+ ["MOVE","5"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["APPEND","Hey, "]]
+Output:
+["Hello, what a wonderful world!", 
+ "Hello, what a wonderful world!", 
+ "Hell, what a wonderful world!", 
+ "Hel, what a wonderful world!", 
+ "He, what a wonderful world!", 
+ "H, what a wonderful world!", 
+ ", what a wonderful world!", 
+ "Hey, , what a wonderful world!"]
+Expected Output:
+["Hello, what a wonderful world!", 
+ "Hello, what a wonderful world!", 
+ "Hell, what a wonderful world!", 
+ "Hel, what a wonderful world!", 
+ "He, what a wonderful world!", 
+ "H, what a wonderful world!", 
+ ", what a wonderful world!", 
+ "Hey, , what a wonderful world!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 7
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["MOVE","6"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["APPEND"," will"], 
+ ["MOVE","39"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["APPEND"," are"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'l never find a rainbow if you're looking down", 
+ "You' never find a rainbow if you're looking down", 
+ "You never find a rainbow if you're looking down", 
+ "You will never find a rainbow if you're looking down", 
+ "You will never find a rainbow if you're looking down", 
+ "You will never find a rainbow if you'r looking down", 
+ "You will never find a rainbow if you' looking down", 
+ "You will never find a rainbow if you looking down", 
+ "You will never find a rainbow if you are looking down"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'l never find a rainbow if you're looking down", 
+ "You' never find a rainbow if you're looking down", 
+ "You never find a rainbow if you're looking down", 
+ "You will never find a rainbow if you're looking down", 
+ "You will never find a rainbow if you're looking down", 
+ "You will never find a rainbow if you'r looking down", 
+ "You will never find a rainbow if you' looking down", 
+ "You will never find a rainbow if you looking down", 
+ "You will never find a rainbow if you are looking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 8
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["MOVE","24"], 
+ ["BACKSPACE"], 
+ ["APPEND","APPEND"], 
+ ["APPEND","APPEND again"], 
+ ["MOVE","80"], 
+ ["MOVE","45"], 
+ ["APPEND","APPEND after MOVE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["MOVE","39"], 
+ ["BACKSPACE"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a raibow if you're looking down", 
+ "You'll never find a raiAPPENDbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOVEif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOVif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND aginbow APPEND after MOif you're looking down"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a raibow if you're looking down", 
+ "You'll never find a raiAPPENDbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow if you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOVEif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOVif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND againbow APPEND after MOif you're looking down", 
+ "You'll never find a raiAPPENDAPPEND aginbow APPEND after MOif you're looking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 9
+
+Input:
+queries:
+[["APPEND","Never give up"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["BACKSPACE"], 
+ ["APPEND","g"], 
+ ["APPEND","L"], 
+ ["APPEND","Fr"], 
+ ["APPEND","wHIp"]]
+Output:
+["Never give up", 
+ "Never give u", 
+ "Never give ", 
+ "Never give", 
+ "Never giv", 
+ "Never gi", 
+ "Never g", 
+ "Never ", 
+ "Never", 
+ "Neve", 
+ "Nev", 
+ "Ne", 
+ "N", 
+ "", 
+ "", 
+ "", 
+ "g", 
+ "gL", 
+ "gLFr", 
+ "gLFrwHIp"]
+Expected Output:
+["Never give up", 
+ "Never give u", 
+ "Never give ", 
+ "Never give", 
+ "Never giv", 
+ "Never gi", 
+ "Never g", 
+ "Never ", 
+ "Never", 
+ "Neve", 
+ "Nev", 
+ "Ne", 
+ "N", 
+ "", 
+ "", 
+ "", 
+ "g", 
+ "gL", 
+ "gLFr", 
+ "gLFrwHIp"]
+Console Output:
+Empty
+Error Output:
+Empty
+Test 10
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["MOVE","17"], 
+ ["APPEND","?"], 
+ ["MOVE","18"], 
+ ["APPEND","?"], 
+ ["MOVE","19"], 
+ ["APPEND","?"], 
+ ["MOVE","20"], 
+ ["APPEND","?"], 
+ ["MOVE","21"], 
+ ["APPEND","?"], 
+ ["MOVE","22"], 
+ ["APPEND","?"], 
+ ["MOVE","23"], 
+ ["APPEND","?"], 
+ ["MOVE","24"], 
+ ["APPEND","?"], 
+ ["MOVE","25"], 
+ ["APPEND","?"], 
+ ["MOVE","26"], 
+ ["APPEND","?"], 
+ ["MOVE","27"], 
+ ["APPEND","?"], 
+ ["MOVE","28"], 
+ ["APPEND","?"], 
+ ["MOVE","29"], 
+ ["APPEND","?"], 
+ ["MOVE","30"], 
+ ["APPEND","?"], 
+ ["MOVE","31"], 
+ ["APPEND","?"], 
+ ["MOVE","32"], 
+ ["APPEND","?"], 
+ ["MOVE","33"], 
+ ["APPEND","?"], 
+ ["MOVE","34"], 
+ ["APPEND","?"], 
+ ["MOVE","35"], 
+ ["APPEND","?"], 
+ ["MOVE","36"], 
+ ["APPEND","?"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find? a rainbow if you're looking down", 
+ "You'll never find? a rainbow if you're looking down", 
+ "You'll never find?? a rainbow if you're looking down", 
+ "You'll never find?? a rainbow if you're looking down", 
+ "You'll never find??? a rainbow if you're looking down", 
+ "You'll never find??? a rainbow if you're looking down", 
+ "You'll never find???? a rainbow if you're looking down", 
+ "You'll never find???? a rainbow if you're looking down", 
+ "You'll never find????? a rainbow if you're looking down", 
+ "You'll never find????? a rainbow if you're looking down", 
+ "You'll never find?????? a rainbow if you're looking down", 
+ "You'll never find?????? a rainbow if you're looking down", 
+ "You'll never find??????? a rainbow if you're looking down", 
+ "You'll never find??????? a rainbow if you're looking down", 
+ "You'll never find???????? a rainbow if you're looking down", 
+ "You'll never find???????? a rainbow if you're looking down", 
+ "You'll never find????????? a rainbow if you're looking down", 
+ "You'll never find????????? a rainbow if you're looking down", 
+ "You'll never find?????????? a rainbow if you're looking down", 
+ "You'll never find?????????? a rainbow if you're looking down", 
+ "You'll never find??????????? a rainbow if you're looking down", 
+ "You'll never find??????????? a rainbow if you're looking down", 
+ "You'll never find???????????? a rainbow if you're looking down", 
+ "You'll never find???????????? a rainbow if you're looking down", 
+ "You'll never find????????????? a rainbow if you're looking down", 
+ "You'll never find????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????? a rainbow if you're looking down", 
+ "You'll never find???????????????? a rainbow if you're looking down", 
+ "You'll never find???????????????? a rainbow if you're looking down", 
+ "You'll never find????????????????? a rainbow if you're looking down", 
+ "You'll never find????????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????????? a rainbow if you're looking down", 
+ "You'll never find???????????????????? a rainbow if you're looking down"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find? a rainbow if you're looking down", 
+ "You'll never find? a rainbow if you're looking down", 
+ "You'll never find?? a rainbow if you're looking down", 
+ "You'll never find?? a rainbow if you're looking down", 
+ "You'll never find??? a rainbow if you're looking down", 
+ "You'll never find??? a rainbow if you're looking down", 
+ "You'll never find???? a rainbow if you're looking down", 
+ "You'll never find???? a rainbow if you're looking down", 
+ "You'll never find????? a rainbow if you're looking down", 
+ "You'll never find????? a rainbow if you're looking down", 
+ "You'll never find?????? a rainbow if you're looking down", 
+ "You'll never find?????? a rainbow if you're looking down", 
+ "You'll never find??????? a rainbow if you're looking down", 
+ "You'll never find??????? a rainbow if you're looking down", 
+ "You'll never find???????? a rainbow if you're looking down", 
+ "You'll never find???????? a rainbow if you're looking down", 
+ "You'll never find????????? a rainbow if you're looking down", 
+ "You'll never find????????? a rainbow if you're looking down", 
+ "You'll never find?????????? a rainbow if you're looking down", 
+ "You'll never find?????????? a rainbow if you're looking down", 
+ "You'll never find??????????? a rainbow if you're looking down", 
+ "You'll never find??????????? a rainbow if you're looking down", 
+ "You'll never find???????????? a rainbow if you're looking down", 
+ "You'll never find???????????? a rainbow if you're looking down", 
+ "You'll never find????????????? a rainbow if you're looking down", 
+ "You'll never find????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????? a rainbow if you're looking down", 
+ "You'll never find???????????????? a rainbow if you're looking down", 
+ "You'll never find???????????????? a rainbow if you're looking down", 
+ "You'll never find????????????????? a rainbow if you're looking down", 
+ "You'll never find????????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????????? a rainbow if you're looking down", 
+ "You'll never find?????????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????????? a rainbow if you're looking down", 
+ "You'll never find??????????????????? a rainbow if you're looking down", 
+ "You'll never find???????????????????? a rainbow if you're looking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 11
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["SELECT","19","27"], 
+ ["BACKSPACE"], 
+ ["APPEND"," sunny place"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking dow", 
+ "You'll never find a rainbow if you're looking dow sunny place"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a if you're looking down", 
+ "You'll never find a sunny place if you're looking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 12
+
+nput:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["SELECT","0","27"], 
+ ["BACKSPACE"], 
+ ["SELECT","7","12"], 
+ ["APPEND","--replaced--"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking dow", 
+ "You'll never find a rainbow if you're looking dow--replaced--"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ " if you're looking down", 
+ " if you're looking down", 
+ " if you--replaced--ooking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 13
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["MOVE","9"], 
+ ["SELECT","9","10"], 
+ ["SELECT","9","9"], 
+ ["SELECT","-100","400"], 
+ ["SELECT","-100","400"], 
+ ["MOVE","30"], 
+ ["MOVE","30"], 
+ ["SELECT","0","50"], 
+ ["BACKSPACE"], 
+ ["SELECT","0","10"], 
+ ["BACKSPACE"], 
+ ["MOVE","10"], 
+ ["APPEND","empty"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow i you're looking down", 
+ "You'll never find a rainbow  you're looking down", 
+ "You'll never find a rainbow  you're looking down", 
+ "You'll nevemptyer find a rainbow  you're looking down"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "", 
+ "", 
+ "", 
+ "", 
+ "empty"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 14
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["SELECT","6","18"], 
+ ["COPY"], 
+ ["SELECT","0","6"], 
+ ["PASTE"], 
+ ["SELECT","14","21"], 
+ ["PASTE"], 
+ ["SELECT","26","50"], 
+ ["PASTE"]]
+Output:
+["You'll never find a rainbow if you're looking down"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ " never find  never find a rainbow if you're looking down", 
+ " never find  never find a rainbow if you're looking down", 
+ " never find  n never find nd a rainbow if you're looking down", 
+ " never find  n never find nd a rainbow if you're looking down", 
+ " never find  n never find  never find ooking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 15
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["SELECT","6","50"], 
+ ["BACKSPACE"], 
+ ["SELECT","0","6"], 
+ ["COPY"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["PASTE"], 
+ ["BACKSPACE"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking dow", 
+ "You'll never find a rainbow if you're looking do"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll", 
+ "You'll", 
+ "You'll", 
+ "You'll", 
+ "You'llYou'll", 
+ "You'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'llYou'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'llYou'llYou'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'llYou'llYou'llYou'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'llYou'llYou'llYou'llYou'llYou'llYou'll", 
+ "You'llYou'llYou'llYou'llYou'llYou'llYou'llYou'llYou'llYou'l"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 16
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["MOVE","40"], 
+ ["PASTE"], 
+ ["COPY"], 
+ ["MOVE","50"], 
+ ["PASTE"], 
+ ["SELECT","-10","64"], 
+ ["COPY"], 
+ ["MOVE","0"], 
+ ["PASTE"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking downYou'll never find a rainbow if you're looking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 17
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["SELECT","19","27"], 
+ ["BACKSPACE"], 
+ ["SELECT","30","38"], 
+ ["COPY"], 
+ ["MOVE","20"], 
+ ["PASTE"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking dow", 
+ "You'll never find a rainbow if you're looking dow"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a if you're looking down", 
+ "You'll never find a if you're looking down", 
+ "You'll never find a if you're looking down", 
+ "You'll never find a if you're looking down", 
+ "You'll never find a looking if you're looking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+Test 18
+Input:
+queries:
+[["APPEND","Never give up"], 
+ ["SELECT","10","10"], 
+ ["COPY"], 
+ ["MOVE","2"], 
+ ["PASTE"], 
+ ["SELECT","13","23"], 
+ ["COPY"], 
+ ["MOVE","5"], 
+ ["PASTE"], 
+ ["APPEND",""]]
+Output:
+["Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up"]
+Expected Output:
+["Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up", 
+ "Never give up"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 19
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["SELECT","0","50"], 
+ ["COPY"], 
+ ["SELECT","1","49"], 
+ ["COPY"], 
+ ["SELECT","2","48"], 
+ ["COPY"], 
+ ["SELECT","3","47"], 
+ ["COPY"], 
+ ["SELECT","4","46"], 
+ ["COPY"], 
+ ["SELECT","5","45"], 
+ ["COPY"], 
+ ["SELECT","6","44"], 
+ ["COPY"], 
+ ["SELECT","7","43"], 
+ ["COPY"], 
+ ["SELECT","8","42"], 
+ ["COPY"], 
+ ["SELECT","9","41"], 
+ ["COPY"], 
+ ["SELECT","0","50"], 
+ ["MOVE","50"], 
+ ["PASTE"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking downver find a rainbow if you're loo"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 20
+
+Input:
+queries:
+[["APPEND","You'll never find a rainbow if you're looking down"], 
+ ["SELECT","6","11"], 
+ ["COPY"], 
+ ["BACKSPACE"], 
+ ["PASTE"], 
+ ["SELECT","0","50"], 
+ ["COPY"], 
+ ["PASTE"]]
+Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking dow"]
+Expected Output:
+["You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'llr find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down", 
+ "You'll never find a rainbow if you're looking down"]
+Console Output:
+Empty
+Error Output:
+Empty
+Test 21
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["UNDO"], 
+ ["APPEND"," Stop it!"], 
+ ["UNDO"], 
+ ["UNDO"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!! Stop it!"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world! Stop it!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 22
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI", 
+ "Text generated by AI.", 
+ "", 
+ ""]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 23
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["UNDO"], 
+ ["APPEND"," Stop it!"], 
+ ["UNDO"], 
+ ["REDO"], 
+ ["REDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["REDO"], 
+ ["REDO"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!! Stop it!"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world! Stop it!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world! Stop it!", 
+ "Text generated by AI that will conquer the world! Stop it!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI", 
+ "Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 24
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["REDO"], 
+ ["REDO"], 
+ ["REDO"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI", 
+ "Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+
+Test 25
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["SELECT","5","31"], 
+ ["BACKSPACE"], 
+ ["APPEND","someday will"], 
+ ["UNDO"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text generated by AI that will conquer the world!!someday will"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text conquer the world!!!", 
+ "Text someday willconquer the world!!!", 
+ "Text conquer the world!!!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 26
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["SELECT","5","31"], 
+ ["BACKSPACE"], 
+ ["APPEND","will "], 
+ ["APPEND","someday "], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["REDO"], 
+ ["REDO"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text generated by AI that will conquer the world!!will ", 
+ "Text generated by AI that will conquer the world!!will someday "]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text conquer the world!!!", 
+ "Text will conquer the world!!!", 
+ "Text will someday conquer the world!!!", 
+ "Text will conquer the world!!!", 
+ "Text conquer the world!!!", 
+ "Text will conquer the world!!!", 
+ "Text will someday conquer the world!!!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 27
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["SELECT","0","17"], 
+ ["BACKSPACE"], 
+ ["MOVE","3"], 
+ ["UNDO"], 
+ ["MOVE","50"], 
+ ["MOVE","6"], 
+ ["MOVE","8"], 
+ ["REDO"], 
+ ["APPEND"," extension"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text gen extensionerated by AI that will conquer the world!!"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ " AI that will conquer the world!!!", 
+ " AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ " AI that will conquer the world!!!", 
+ " AI extension that will conquer the world!!!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 28
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["SELECT","0","100"], 
+ ["BACKSPACE"], 
+ ["APPEND","!random text!"], 
+ ["APPEND","!random text!"], 
+ ["APPEND","!random text!"], 
+ ["APPEND","!random text!"], 
+ ["APPEND","!random text!"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["UNDO"]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!", 
+ "Text generated by AI that will conquer the world!!!random text!", 
+ "Text generated by AI that will conquer the world!!!random text!!random text!", 
+ "Text generated by AI that will conquer the world!!!random text!!random text!!random text!", 
+ "Text generated by AI that will conquer the world!!!random text!!random text!!random text!!random text!", 
+ "Text generated by AI that will conquer the world!!!random text!!random text!!random text!!random text!!random text!"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "", 
+ "!random text!", 
+ "!random text!!random text!", 
+ "!random text!!random text!!random text!", 
+ "!random text!!random text!!random text!!random text!", 
+ "!random text!!random text!!random text!!random text!!random text!", 
+ "!random text!!random text!!random text!!random text!", 
+ "!random text!!random text!!random text!", 
+ "!random text!!random text!", 
+ "!random text!", 
+ "", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI", 
+ "Text generated by AI."]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 29
+
+Input:
+queries:
+[["APPEND","Text generated by AI."], 
+ ["BACKSPACE"], 
+ ["APPEND"," that will conquer the world!"], 
+ ["APPEND","!!"], 
+ ["UNDO"], 
+ ["APPEND","??????"], 
+ ["MOVE","19"], 
+ ["SELECT","3","6"], 
+ ["MOVE","0"], 
+ ["BACKSPACE"], 
+ ["MOVE","20"], 
+ ["APPEND",""], 
+ ["UNDO"], 
+ ["APPEND",""]]
+Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!!!??????", 
+ "Text generated by AI that will conquer the world!!!??????", 
+ "Text generated by AI that will conquer the world!!!??????", 
+ "Text generated by AI that will conquer the world!!!?????Text generated by AI that will conquer the world!!!??????", 
+ "Text generated by AI that will conquer the world!!!?????Text generated by AI that will conquer the world!!!??????", 
+ "Text generated by AI that will conquer the world!!!?????Text generated by AI that will conquer the world!!!??????", 
+ "Text generated by AI that will conquer the world!!!?????Text generated by AI that will conquer the world!!!??????"]
+Expected Output:
+["Text generated by AI.", 
+ "Text generated by AI", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!!!", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!??????", 
+ "Text generated by AI that will conquer the world!??????", 
+ "Text generated by AI that will conquer the world!??????", 
+ "Text generated by AI that will conquer the world!??????", 
+ "Text generated by AI that will conquer the world!??????", 
+ "Text generated by AI that will conquer the world!??????", 
+ "Text generated by AI that will conquer the world!??????", 
+ "Text generated by AI that will conquer the world!", 
+ "Text generated by AI that will conquer the world!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 30
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["SWITCH","file1"], 
+ ["BACKSPACE"], 
+ ["SWITCH","file2"], 
+ ["APPEND"," Welcome!"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here", 
+ "Welcome to the content of file1!File2 is also here Welcome!"]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "Welcome to the content of file1!", "Welcome to the content of file1", "File2 is also here.", "File2 is also here. Welcome!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 31
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["SWITCH","file1"], 
+ ["BACKSPACE"], 
+ ["SWITCH","file2"], 
+ ["APPEND"," Welcome!"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here", 
+ "Welcome to the content of file1!File2 is also here Welcome!"]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "Welcome to the content of file1!", "Welcome to the content of file1", "File2 is also here.", "File2 is also here. Welcome!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 32
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["MOVE","0"], 
+ ["SWITCH","file1"], 
+ ["SELECT","11","26"], 
+ ["COPY"], 
+ ["SWITCH","file2"], 
+ ["PASTE"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here."]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "File2 is also here.", "Welcome to the content of file1!", "Welcome to the content of file1!", "Welcome to the content of file1!", "File2 is also here.", "the content of File2 is also here."]
+
+Test 33
+
+nput:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["SELECT","13","18"], 
+ ["COPY"], 
+ ["SWITCH","file1"], 
+ ["SELECT","22","31"], 
+ ["PASTE"], 
+ ["SELECT","0","7"], 
+ ["COPY"], 
+ ["SWITCH","file2"], 
+ ["APPEND"," "], 
+ ["PASTE"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here. "]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "File2 is also here.", "File2 is also here.", "Welcome to the content of file1!", "Welcome to the content of file1!", "Welcome to the content here!", "Welcome to the content here!", "Welcome to the content here!", "File2 is also here.", "File2 is also .", "File2 is also Welcome."]
+
+Test 34
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["SWITCH","file1"], 
+ ["SELECT","0","26"], 
+ ["COPY"], 
+ ["CREATE","file3"], 
+ ["SWITCH","file3"], 
+ ["PASTE"], 
+ ["APPEND","file3"], 
+ ["SWITCH","file2"], 
+ ["SELECT","0","14"], 
+ ["PASTE"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here.file3"]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "Welcome to the content of file1!", "Welcome to the content of file1!", "Welcome to the content of file1!", "Welcome to the content of file1!", "", "Welcome to the content of ", "Welcome to the content of file3", "File2 is also here.", "File2 is also here.", "Welcome to the content of here."]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 35
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["SWITCH","file3"], 
+ ["CREATE","file1"], 
+ ["SWITCH","file3"], 
+ ["CREATE","file1"], 
+ ["APPEND"," - the end"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here. - the end"]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "", "", "", "", "File2 is also here. - the end"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 36
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["SWITCH","file1"], 
+ ["SWITCH","file1"], 
+ ["SWITCH","file3"], 
+ ["APPEND","Hello."], 
+ ["SELECT","2","20"], 
+ ["SWITCH","file4"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file2"], 
+ ["PASTE"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here.Hello."]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "Welcome to the content of file1!", "Welcome to the content of file1!", "", "Welcome to the content of file1!Hello.", "Welcome to the content of file1!Hello.", "", "", "File2 is also here.", "File2 is also here."]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 37
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["APPEND"," Adding to file2."], 
+ ["SWITCH","file1"], 
+ ["UNDO"], 
+ ["SWITCH","file2"], 
+ ["UNDO"], 
+ ["BACKSPACE"], 
+ ["SWITCH","file1"], 
+ ["REDO"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here. Adding to file2.", 
+ "Welcome to the content of file1!File2 is also here. Adding to file2"]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "File2 is also here. Adding to file2.", "Welcome to the content of file1!", "", "File2 is also here. Adding to file2.", "File2 is also here.", "File2 is also here", "", "Welcome to the content of file1!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+Test 38
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["CREATE","file10"], 
+ ["SWITCH","file10"], 
+ ["APPEND","Welcome to file10"], 
+ ["CREATE","file11"], 
+ ["SWITCH","file11"], 
+ ["APPEND","Welcome to file11"], 
+ ["CREATE","file12"], 
+ ["SWITCH","file12"], 
+ ["APPEND","Welcome to file12"], 
+ ["CREATE","file13"], 
+ ["SWITCH","file13"], 
+ ["APPEND","Welcome to file13"], 
+ ["CREATE","file14"], 
+ ["SWITCH","file14"], 
+ ["APPEND","Welcome to file14"], 
+ ["CREATE","file15"], 
+ ["SWITCH","file15"], 
+ ["APPEND","Welcome to file15"], 
+ ["CREATE","file16"], 
+ ["SWITCH","file16"], 
+ ["APPEND","Welcome to file16"], 
+ ["CREATE","file17"], 
+ ["SWITCH","file17"], 
+ ["APPEND","Welcome to file17"], 
+ ["CREATE","file18"], 
+ ["SWITCH","file18"], 
+ ["APPEND","Welcome to file18"], 
+ ["CREATE","file19"], 
+ ["SWITCH","file19"], 
+ ["APPEND","Welcome to file19"], 
+ ["SWITCH","file20"], 
+ ["SWITCH","file14"], 
+ ["APPEND","!!"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13Welcome to file14", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13Welcome to file14Welcome to file15", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13Welcome to file14Welcome to file15Welcome to file16", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13Welcome to file14Welcome to file15Welcome to file16Welcome to file17", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13Welcome to file14Welcome to file15Welcome to file16Welcome to file17Welcome to file18", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13Welcome to file14Welcome to file15Welcome to file16Welcome to file17Welcome to file18Welcome to file19", 
+ "Welcome to the content of file1!File2 is also here.Welcome to file10Welcome to file11Welcome to file12Welcome to file13Welcome to file14Welcome to file15Welcome to file16Welcome to file17Welcome to file18Welcome to file19!!"]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "File2 is also here.", "", "Welcome to file10", "Welcome to file10", "", "Welcome to file11", "Welcome to file11", "", "Welcome to file12", "Welcome to file12", "", "Welcome to file13", "Welcome to file13", "", "Welcome to file14", "Welcome to file14", "", "Welcome to file15", "Welcome to file15", "", "Welcome to file16", "Welcome to file16", "", "Welcome to file17", "Welcome to file17", "", "Welcome to file18", "Welcome to file18", "", "Welcome to file19", "", "Welcome to file14", "Welcome to file14!!"]
+
+Test 39
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["SELECT","1","7"], 
+ ["SWITCH","file1"], 
+ ["MOVE","8"], 
+ ["SWITCH","file2"], 
+ ["APPEND","--Adding to file2--"], 
+ ["SWITCH","file1"], 
+ ["APPEND","--Adding to file1--"], 
+ ["SWITCH","file2"], 
+ ["MOVE","17"], 
+ ["SWITCH","file1"], 
+ ["SELECT","14","19"], 
+ ["SWITCH","file2"], 
+ ["BACKSPACE"], 
+ ["SWITCH","file1"], 
+ ["BACKSPACE"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome --Adding to file2--to the content of file1!File2 is also here.", 
+ "Welcome --Adding to file2----Adding to file1--to the content of file1!File2 is also here.", 
+ "Welcome --Adding to file2----Adding to file1--to the content of file1!File2 is also here.", 
+ "Welcome --Addingto file2----Adding to file1--to the content of file1!File2 is also here.", 
+ "Welcome --Addinto file2----Adding to file1--to the content of file1!File2 is also here."]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "File2 is also here.", "Welcome to the content of file1!", "Welcome to the content of file1!", "File2 is also here.", "F--Adding to file2--s also here.", "Welcome to the content of file1!", "Welcome --Adding to file1--to the content of file1!", "F--Adding to file2--s also here.", "F--Adding to file2--s also here.", "Welcome --Adding to file1--to the content of file1!", "Welcome --Adding to file1--to the content of file1!", "F--Adding to file2--s also here.", "F--Adding to fil2--s also here.", "Welcome --Adding to file1--to the content of file1!", "Welcome --Addi file1--to the content of file1!"]
+Console Output:
+Empty
+Error Output:
+Empty
+
+
+Test 40
+
+Input:
+queries:
+[["CREATE","file1"], 
+ ["CREATE","file2"], 
+ ["SWITCH","file1"], 
+ ["APPEND","Welcome to the content of file1!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","File2 is also here."], 
+ ["CREATE","file3"], 
+ ["APPEND","Hello"], 
+ ["SWITCH","file1"], 
+ ["APPEND","How do you do?"], 
+ ["MOVE","3"], 
+ ["BACKSPACE"], 
+ ["SWITCH","file3"], 
+ ["APPEND","Try this one!"], 
+ ["SWITCH","file2"], 
+ ["APPEND","World"], 
+ ["SWITCH","file1"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["SWITCH","file2"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["SWITCH","file3"], 
+ ["UNDO"], 
+ ["UNDO"], 
+ ["SWITCH","file1"], 
+ ["REDO"], 
+ ["SWITCH","file2"], 
+ ["REDO"], 
+ ["SWITCH","file3"], 
+ ["REDO"]]
+Output:
+["Welcome to the content of file1!", 
+ "Welcome to the content of file1!File2 is also here.", 
+ "Welcome to the content of file1!File2 is also here.Hello", 
+ "Welcome to the content of file1!File2 is also here.HelloHow do you do?", 
+ "Welcome to the content of file1!File2 is also here.HelloHow do you do?", 
+ "Wecome to the content of file1!File2 is also here.HelloHow do you do?", 
+ "WeTry this one!come to the content of file1!File2 is also here.HelloHow do you do?", 
+ "WeTry this one!Worldcome to the content of file1!File2 is also here.HelloHow do you do?"]
+Expected Output:
+["", "", "", "Welcome to the content of file1!", "", "File2 is also here.", "File2 is also here.", "File2 is also here.Hello", "Welcome to the content of file1!", "Welcome to the content of file1!How do you do?", "Welcome to the content of file1!How do you do?", "Wecome to the content of file1!How do you do?", "", "Try this one!", "File2 is also here.Hello", "File2 is also here.HelloWorld", "Wecome to the content of file1!How do you do?", "Welcome to the content of file1!How do you do?", "Welcome to the content of file1!", "File2 is also here.HelloWorld", "File2 is also here.Hello", "File2 is also here.", "Try this one!", "", "", "Welcome to the content of file1!", "Welcome to the content of file1!How do you do?", "File2 is also here.", "File2 is also here.Hello", "", "Try this one!"]
